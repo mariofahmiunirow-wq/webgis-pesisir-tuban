@@ -181,7 +181,8 @@
       width: 100%; height: 160px; background: var(--bg3); overflow: hidden;
       margin-bottom: 10px; border-radius: 10px; position: relative; border: 1px solid var(--border);
     }
-    .pc-img-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text2); font-size: 28px; }
+    .pc-img-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text2); font-size: 28px; gap: 4px; }
+    .pc-img-placeholder span { font-size: 10px; color: var(--text3); font-weight: 600; }
     .pc-img-box img { width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 2; transition: transform 0.3s; }
     .pc-img-box img:hover { transform: scale(1.05); }
     .pc-kec { font-size: 9px; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; font-weight: 800; }
@@ -382,8 +383,8 @@
       <button class="pc-close" onclick="closePopup()">✕</button>
       <div class="pc-head">
         <div class="pc-img-box">
-          <div class="pc-img-placeholder">📷</div>
-          <img id="pc-img" src="" onerror="this.style.display='none'" onload="this.style.display='block'">
+          <div class="pc-img-placeholder">📷 <span>Memuat Foto...</span></div>
+          <img id="pc-img" src="">
         </div>
         <div class="pc-kec" id="pc-kec"></div>
         <div class="pc-desa" id="pc-desa"></div>
@@ -656,10 +657,39 @@ function openPopup(idx) {
   document.getElementById('pc-gmap').href = 'https://www.google.com/maps?q=' + d.lat + ',' + d.lon;
   document.getElementById('pc-osm').href = 'https://www.openstreetmap.org/?mlat=' + d.lat + '&mlon=' + d.lon + '&zoom=18';
 
-  const imgPath = encodeURI(d.kec + '/' + d.desa + '/' + d.file);
+  // Smart Multi-Path Fallback Image Loader (GitHub raw + relative paths)
   const imgEl = document.getElementById('pc-img');
-  imgEl.src = imgPath;
-  imgEl.style.display = 'none';
+  const GITHUB_RAW = 'https://raw.githubusercontent.com/mariofahmiunirow-wq/webgis-pesisir-tuban/main/';
+  
+  const pathVariants = [
+    GITHUB_RAW + encodeURIComponent('photos/' + d.file).replace(/%2F/g, '/'),
+    encodeURI('photos/' + d.file),
+    encodeURI(d.kec + '/' + d.desa + '/' + d.file),
+    encodeURI(d.kec.toLowerCase() + '/' + d.desa + '/' + d.file),
+    encodeURI('kecamatan palang/' + d.desa + '/' + d.file),
+    encodeURI('KECAMATAN PALANG/' + d.desa + '/' + d.file)
+  ];
+
+  let pathIdx = 0;
+
+  function tryNextPath() {
+    if (pathIdx < pathVariants.length) {
+      imgEl.src = pathVariants[pathIdx++];
+    } else {
+      imgEl.style.display = 'none';
+    }
+  }
+
+  imgEl.onerror = function() {
+    tryNextPath();
+  };
+
+  imgEl.onload = function() {
+    imgEl.style.display = 'block';
+  };
+
+  pathIdx = 0;
+  tryNextPath();
 
   const grp = document.getElementById('pc-grp');
   if (d.n > 1 && d.others) {
@@ -811,7 +841,6 @@ function saveApiKey() {
   localStorage.setItem('gemini_api_key', key);
 }
 
-// Load saved key
 if (localStorage.getItem('gemini_api_key')) {
   document.getElementById('ai-api-key').value = localStorage.getItem('gemini_api_key');
 }
@@ -832,7 +861,6 @@ async function sendAIMessage() {
   const apiKey = document.getElementById('ai-api-key').value.trim();
 
   if (apiKey) {
-    // Call Gemini API Live from Google AI Studio
     appendChatMsg('bot', '⏳ Menghubungi Gemini 2.0 via Google AI Studio API...');
     try {
       const systemPrompt = `Anda adalah Asisten AI WebGIS Pesisir Tuban. Berikut rangkuman data 77 titik foto GPS: 
@@ -851,7 +879,6 @@ Jawab pertanyaan berikut secara ringkas, ramah, dan informatif: ${query}`;
       });
       const data = await res.json();
       if (data.candidates && data.candidates[0].content.parts[0].text) {
-        // Remove loading
         removeLastBotMsg();
         appendChatMsg('bot', data.candidates[0].content.parts[0].text);
       } else {
@@ -864,7 +891,6 @@ Jawab pertanyaan berikut secara ringkas, ramah, dan informatif: ${query}`;
       runSmartLocalEngine(query);
     }
   } else {
-    // Use Built-in Smart Spatial Engine
     runSmartLocalEngine(query);
   }
 }
@@ -902,7 +928,6 @@ function runSmartLocalEngine(q) {
       `• Total 212 foto dikelompokkan ke dalam 77 titik koordinat presisi GPS.\n` +
       `• Pengambilan sampel dilakukan menggunakan GPS Map Camera.`;
   } else {
-    // Search highlight match
     const matches = DATA.filter(d => (d.desa + d.file + d.kec).toLowerCase().includes(query));
     if (matches.length > 0) {
       reply = `🔍 Ditemukan **${matches.length} titik** yang cocok dengan kata kunci "${q}". Peta dan sidebar telah disaring secara otomatis!`;
