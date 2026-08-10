@@ -657,12 +657,10 @@ function openPopup(idx) {
   document.getElementById('pc-gmap').href = 'https://www.google.com/maps?q=' + d.lat + ',' + d.lon;
   document.getElementById('pc-osm').href = 'https://www.openstreetmap.org/?mlat=' + d.lat + '&mlon=' + d.lon + '&zoom=18';
 
-  // Smart Multi-Path Fallback Image Loader (GitHub raw + relative paths)
+  // Smart Multi-Path Fallback Image Loader (Handles Flat photos/ folder & Subfolders)
   const imgEl = document.getElementById('pc-img');
-  const GITHUB_RAW = 'https://raw.githubusercontent.com/mariofahmiunirow-wq/webgis-pesisir-tuban/main/';
   
   const pathVariants = [
-    GITHUB_RAW + encodeURIComponent('photos/' + d.file).replace(/%2F/g, '/'),
     encodeURI('photos/' + d.file),
     encodeURI(d.kec + '/' + d.desa + '/' + d.file),
     encodeURI(d.kec.toLowerCase() + '/' + d.desa + '/' + d.file),
