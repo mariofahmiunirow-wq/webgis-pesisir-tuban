@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pemetaan Pesisir Tuban — WebGIS & AI Assistant</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #070d14; --bg2: #0e1724; --bg3: #152234; --bg4: #1e2f45;
+      --border: #243852; --text: #e2f0fd; --text2: #789ec2; --text3: #46698b;
+      --accent: #38bdf8; --shadow: 0 12px 36px rgba(0,0,0,0.75);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+    header {
+      height: 58px; background: linear-gradient(90deg, #050a10 0%, #0d1a2d 50%, #061120 100%);
+      border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+    }
+    .h-title { font-size: 16px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 10px; }
+    .h-link { background: var(--accent); color: #000; padding: 6px 14px; border-radius: 20px; text-decoration: none; font-weight: 700; font-size: 12px; transition: transform 0.2s; }
+    .h-link:hover { transform: scale(1.05); }
+
+    .main-wrap { display: flex; height: calc(100vh - 58px); }
+    iframe { width: 100%; height: 100%; border: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="h-title">
+    <span>🛰️</span> WebGIS Pesisir Tuban — Portal Riset Foto GPS
+  </div>
+  <a href="webgis_leaflet.html" class="h-link">🚀 Buka Mode Fullscreen WebGIS</a>
+</header>
+
+<div class="main-wrap">
+  <iframe src="webgis_leaflet.html"></iframe>
+</div>
+
+</body>
+</html>

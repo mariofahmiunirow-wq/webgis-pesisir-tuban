@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebGIS Pesisir Tuban — AI Studio & Leaflet</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <!-- Marker Cluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:        #070d14;
+      --bg2:       #0e1724;
+      --bg3:       #152234;
+      --bg4:       #1e2f45;
+      --border:    #243852;
+      --text:      #e2f0fd;
+      --text2:     #789ec2;
+      --text3:     #46698b;
+      --accent:    #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.35);
+      --green:     #34d399;
+      --yellow:    #fbbf24;
+      --pink:      #f472b6;
+      --blue:      #60a5fa;
+      --purple:    #a78bfa;
+      --orange:    #fb923c;
+      --shadow:    0 12px 36px rgba(0, 0, 0, 0.75);
+      --radius:    12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+    /* ── HEADER ── */
+    header {
+      height: 58px; background: linear-gradient(90deg, #050a10 0%, #0d1a2d 50%, #061120 100%);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 14px; padding: 0 18px;
+      position: relative; z-index: 1000; flex-shrink: 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .h-logo { font-size: 24px; filter: drop-shadow(0 0 6px rgba(56,189,248,0.5)); }
+    .h-titles h1 { font-size: 15px; font-weight: 800; letter-spacing: -0.2px; background: linear-gradient(90deg, #fff, #93c5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .h-titles p { font-size: 11px; color: var(--text2); margin-top: 1px; }
+
+    .h-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .h-chips { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; max-width: 480px; }
+    .h-chip {
+      display: flex; align-items: center; gap: 5px; padding: 4px 11px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      border-radius: 20px; font-size: 11px; cursor: pointer; transition: all .2s;
+      white-space: nowrap; user-select: none; font-weight: 600;
+    }
+    .h-chip:hover { background: rgba(255,255,255,.1); transform: translateY(-1px); }
+    .h-chip.off { opacity: .3; filter: grayscale(0.8); }
+    .h-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 6px currentColor; }
+
+    .ai-toggle-btn {
+      background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+      color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px;
+      padding: 6px 14px; font-size: 11px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 6px; transition: all 0.2s;
+      box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+    }
+    .ai-toggle-btn:hover { transform: scale(1.05); box-shadow: 0 0 18px rgba(124, 58, 237, 0.7); }
+
+    .mob-toggle { display: none; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+
+    /* ── LAYOUT ── */
+    .layout { display: flex; height: calc(100vh - 58px); position: relative; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 310px; min-width: 310px; background: var(--bg2);
+      border-right: 1px solid var(--border); display: flex; flex-direction: column;
+      overflow: hidden; z-index: 500; transition: transform 0.3s ease;
+    }
+    .sb-top { padding: 12px; border-bottom: 1px solid var(--border); background: var(--bg2); }
+    .sb-search {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 12px;
+      outline: none; transition: border-color .2s, box-shadow .2s; margin-bottom: 8px;
+    }
+    .sb-search:focus { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+    .sb-filters { display: flex; gap: 5px; flex-wrap: wrap; }
+    .sf-btn {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+      padding: 4px 9px; font-size: 10px; color: var(--text2); cursor: pointer;
+      transition: all .15s; white-space: nowrap; font-weight: 600;
+    }
+    .sf-btn:hover { background: var(--bg4); color: #fff; }
+    .sf-btn.active { color: #fff; background: var(--bg4); border-color: var(--accent); }
+
+    .sb-list { flex: 1; overflow-y: auto; }
+    .kec-hdr {
+      padding: 9px 12px 6px; font-size: 10px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: .8px;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .kec-cnt {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1px 7px; font-size: 9px; color: var(--text2); font-weight: 700;
+    }
+    .loc-row {
+      padding: 9px 12px; border-bottom: 1px solid rgba(36,56,82,.5);
+      cursor: pointer; display: flex; gap: 9px; align-items: flex-start;
+      transition: background .15s;
+    }
+    .loc-row:hover { background: var(--bg3); }
+    .loc-row.active { background: rgba(56,189,248,.12); border-left: 3px solid var(--accent); }
+    .lr-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; box-shadow: 0 0 5px currentColor; }
+    .lr-body { flex: 1; min-width: 0; }
+    .lr-desa { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+    .lr-file { font-size: 10px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lr-coord { font-size: 9px; color: var(--text3); font-family: monospace; margin-top: 2px; }
+    .gr-badge {
+      background: linear-gradient(135deg, var(--orange), #f59e0b); color: #000; border-radius: 10px;
+      padding: 1px 6px; font-size: 8px; font-weight: 800; margin-left: 4px; vertical-align: middle;
+    }
+
+    /* ── MAP ── */
+    .map-wrap { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; background: #000; }
+
+    /* ── STATS OVERLAY ── */
+    .stats {
+      position: absolute; top: 14px; left: 14px; z-index: 900;
+      background: rgba(7, 13, 20, 0.9); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 18px; backdrop-filter: blur(12px);
+      display: flex; gap: 20px; box-shadow: var(--shadow);
+    }
+    .st { text-align: center; }
+    .st-n { font-size: 20px; font-weight: 800; color: var(--accent); line-height: 1; }
+    .st-l { font-size: 9px; color: var(--text2); text-transform: uppercase; font-weight: 700; margin-top: 3px; letter-spacing: 0.5px; }
+
+    /* ── BASEMAP CONTROL ── */
+    .bm-ctrl {
+      position: absolute; top: 14px; right: 14px; z-index: 900;
+      background: rgba(7, 13, 20, 0.9); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 6px; backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; gap: 4px; box-shadow: var(--shadow);
+    }
+    .bm-btn {
+      padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 600;
+      border: 1px solid transparent; background: transparent; color: var(--text2);
+      cursor: pointer; transition: all .15s; text-align: left; white-space: nowrap;
+    }
+    .bm-btn:hover { background: var(--bg3); color: var(--text); }
+    .bm-btn.active { background: rgba(56,189,248,.18); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+    .bm-divider { height: 1px; background: var(--border); margin: 2px 0; }
+    .bm-label { font-size: 9px; color: var(--text3); padding: 2px 6px; text-transform: uppercase; letter-spacing: .5px; font-weight: 700; }
+
+    /* ── POPUP CARD ── */
+    .popup-card {
+      position: absolute; bottom: 24px; right: 24px; z-index: 900;
+      background: rgba(7, 13, 20, 0.95); border: 1px solid var(--border);
+      border-radius: 16px; width: 320px;
+      box-shadow: var(--shadow); backdrop-filter: blur(16px);
+      display: none; animation: slideUp .2s ease-out;
+      overflow: hidden;
+    }
+    .popup-card.show { display: block; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .pc-close {
+      position: absolute; top: 10px; right: 12px; background: rgba(0,0,0,0.5); border: 1px solid var(--border);
+      color: var(--text); width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 14px; z-index: 5;
+      transition: background 0.2s;
+    }
+    .pc-close:hover { background: rgba(239, 68, 68, 0.8); color: #fff; }
+    .pc-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+    .pc-img-box {
+      width: 100%; height: 160px; background: var(--bg3); overflow: hidden;
+      margin-bottom: 10px; border-radius: 10px; position: relative; border: 1px solid var(--border);
+    }
+    .pc-img-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text2); font-size: 28px; }
+    .pc-img-box img { width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 2; transition: transform 0.3s; }
+    .pc-img-box img:hover { transform: scale(1.05); }
+    .pc-kec { font-size: 9px; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; font-weight: 800; }
+    .pc-desa { font-size: 14px; font-weight: 800; margin-bottom: 2px; color: #fff; }
+    .pc-file { font-size: 10px; color: var(--text2); word-break: break-all; font-family: monospace; }
+    .pc-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .pc-row { display: flex; gap: 8px; }
+    .pc-box { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+    .pc-lbl { font-size: 8px; color: var(--text2); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px; font-weight: 700; }
+    .pc-val { font-size: 11px; font-weight: 700; font-family: monospace; color: var(--accent); }
+    .pc-grp {
+      background: rgba(251,146,60,.08); border: 1px solid rgba(251,146,60,.3);
+      border-radius: 8px; padding: 8px 10px;
+    }
+    .pc-grp-title { font-size: 10px; color: var(--orange); font-weight: 700; margin-bottom: 4px; }
+    .pc-grp-files { font-size: 9px; color: var(--text2); line-height: 1.5; max-height: 60px; overflow-y: auto; font-family: monospace; }
+    .pc-foot { padding: 8px 16px 14px; display: flex; gap: 8px; }
+    .pc-btn {
+      flex: 1; padding: 8px 0; border-radius: 8px; font-size: 11px; font-weight: 700;
+      border: none; cursor: pointer; transition: all .2s; text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .pc-btn-primary { background: var(--accent); color: #000; box-shadow: 0 0 10px var(--accent-glow); }
+    .pc-btn-primary:hover { background: #7dd3fc; }
+    .pc-btn-secondary { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); }
+    .pc-btn-secondary:hover { color: var(--text); background: var(--bg4); }
+
+    /* ── FIT BTN ── */
+    .fit-btn {
+      position: absolute; bottom: 24px; left: 14px; z-index: 900;
+      background: rgba(7, 13, 20, 0.9); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 14px; font-size: 11px; color: var(--text);
+      cursor: pointer; transition: all .2s; backdrop-filter: blur(8px); font-weight: 600;
+      box-shadow: var(--shadow);
+    }
+    .fit-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.02); }
+
+    /* ── AI ASSISTANT DRAWER ── */
+    .ai-drawer {
+      position: absolute; top: 0; right: 0; bottom: 0; width: 360px; z-index: 1200;
+      background: rgba(7, 13, 20, 0.96); border-left: 1px solid var(--border);
+      backdrop-filter: blur(16px); box-shadow: -8px 0 32px rgba(0,0,0,0.8);
+      display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .ai-drawer.open { transform: translateX(0); }
+    .ai-header {
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(90deg, rgba(124, 58, 237, 0.2), rgba(37, 99, 235, 0.1));
+    }
+    .ai-title { font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px; color: #fff; }
+    .ai-close { background: none; border: none; color: var(--text2); font-size: 18px; cursor: pointer; }
+    .ai-close:hover { color: #fff; }
+
+    .ai-api-key-box {
+      padding: 10px 14px; background: rgba(30, 47, 69, 0.5); border-bottom: 1px solid var(--border);
+    }
+    .ai-key-input {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 10px; color: #fff; font-size: 11px; outline: none; margin-top: 4px; font-family: monospace;
+    }
+
+    .ai-chat-body { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .ai-msg { display: flex; flex-direction: column; gap: 4px; max-width: 90%; }
+    .ai-msg.user { align-self: flex-end; }
+    .ai-msg.bot { align-self: flex-start; }
+    .ai-bubble {
+      padding: 10px 14px; border-radius: 12px; font-size: 12px; line-height: 1.5;
+    }
+    .ai-msg.user .ai-bubble { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-bottom-right-radius: 2px; }
+    .ai-msg.bot .ai-bubble { background: var(--bg3); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 2px; }
+    .ai-time { font-size: 9px; color: var(--text3); font-family: monospace; }
+
+    .ai-presets { padding: 0 14px 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .ai-preset-btn {
+      background: rgba(124, 58, 237, 0.15); border: 1px solid rgba(124, 58, 237, 0.4);
+      color: #c4b5fd; border-radius: 16px; padding: 4px 10px; font-size: 10px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .ai-preset-btn:hover { background: rgba(124, 58, 237, 0.3); color: #fff; }
+
+    .ai-input-box { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+    .ai-input {
+      flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 12px; color: var(--text); font-size: 12px; outline: none;
+    }
+    .ai-send-btn {
+      background: var(--accent); color: #000; border: none; border-radius: 8px;
+      padding: 0 14px; font-weight: 700; font-size: 12px; cursor: pointer; transition: background 0.2s;
+    }
+    .ai-send-btn:hover { background: #7dd3fc; }
+
+    /* Leaflet overrides */
+    .leaflet-control-zoom { border: none !important; }
+    .leaflet-control-zoom a {
+      background: rgba(7, 13, 20, 0.9) !important; border: 1px solid var(--border) !important;
+      color: var(--text) !important; border-radius: 8px !important; margin-bottom: 4px !important;
+    }
+    .leaflet-control-zoom a:hover { background: var(--bg3) !important; color: var(--accent) !important; }
+    .leaflet-control-attribution { font-size: 9px; background: rgba(0,0,0,.6) !important; color: #888 !important; }
+    .leaflet-control-attribution a { color: #aaa !important; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { display: none !important; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+    @media (max-width: 768px) {
+      .sidebar { position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .mob-toggle { display: block; }
+      .h-chips { display: none; }
+      .ai-drawer { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <button class="mob-toggle" onclick="toggleSidebar()">☰ Menu</button>
+  <span class="h-logo">🛰️</span>
+  <div class="h-titles">
+    <h1>WebGIS Pesisir Tuban — AI Studio & Leaflet</h1>
+    <p>Basemap: Esri Satelit & Hybrid · 77 Titik GPS · 5 Kecamatan · Smart Spatial AI</p>
+  </div>
+
+  <div class="h-actions">
+    <div class="h-chips">
+      <div class="h-chip" data-kec="KECAMATAN BANCAR" onclick="toggleLayer(this)">
+        <span class="h-dot" style="background:#f472b6; color:#f472b6;"></span>Bancar
+      </div>
+      <div class="h-chip" data-kec="KECAMATAN JENU" onclick="toggleLayer(this)">
+        <span class="h-dot" style="background:#60a5fa; color:#60a5fa;"></span>Jenu
+      </div>
+      <div class="h-chip" data-kec="KECAMATAN PALANG" onclick="toggleLayer(this)">
+        <span class="h-dot" style="background:#34d399; color:#34d399;"></span>Palang
+      </div>
+      <div class="h-chip" data-kec="KECAMATAN TAMBAKBOYO" onclick="toggleLayer(this)">
+        <span class="h-dot" style="background:#fbbf24; color:#fbbf24;"></span>Tambakboyo
+      </div>
+      <div class="h-chip" data-kec="KECAMATAN TUBAN" onclick="toggleLayer(this)">
+        <span class="h-dot" style="background:#a78bfa; color:#a78bfa;"></span>Tuban
+      </div>
+    </div>
+
+    <button class="ai-toggle-btn" onclick="toggleAIDrawer()">
+      <span>✨</span> AI Assistant
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-top">
+      <input class="sb-search" id="sb-search" placeholder="🔍  Cari desa, foto, koordinat..." oninput="filterSidebar()">
+      <div class="sb-filters">
+        <button class="sf-btn active" onclick="setSideFilter('all',this)">Semua</button>
+        <button class="sf-btn" onclick="setSideFilter('KECAMATAN BANCAR',this)" style="border-color:#f472b6">Bancar</button>
+        <button class="sf-btn" onclick="setSideFilter('KECAMATAN JENU',this)" style="border-color:#60a5fa">Jenu</button>
+        <button class="sf-btn" onclick="setSideFilter('KECAMATAN PALANG',this)" style="border-color:#34d399">Palang</button>
+        <button class="sf-btn" onclick="setSideFilter('KECAMATAN TAMBAKBOYO',this)" style="border-color:#fbbf24">Tambakboyo</button>
+        <button class="sf-btn" onclick="setSideFilter('KECAMATAN TUBAN',this)" style="border-color:#a78bfa">Tuban</button>
+      </div>
+    </div>
+    <div class="sb-list" id="sb-list"></div>
+  </div>
+
+  <!-- Map -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="st"><div class="st-n" id="st-visible">77</div><div class="st-l">Titik GPS</div></div>
+      <div class="st"><div class="st-n">5</div><div class="st-l">Kecamatan</div></div>
+      <div class="st"><div class="st-n">212</div><div class="st-l">Total Foto</div></div>
+    </div>
+
+    <!-- Basemap Control -->
+    <div class="bm-ctrl">
+      <div class="bm-label">Basemap</div>
+      <button class="bm-btn active" id="bm-sat" onclick="setBasemap('satellite',this)">🛰️ Satelit Esri</button>
+      <button class="bm-btn" id="bm-hyb" onclick="setBasemap('hybrid',this)">🏙️ Hybrid Label</button>
+      <button class="bm-btn" id="bm-osm" onclick="setBasemap('osm',this)">🗺️ OpenStreetMap</button>
+      <button class="bm-btn" id="bm-topo" onclick="setBasemap('topo',this)">⛰️ Topografi</button>
+      <div class="bm-divider"></div>
+      <div class="bm-label">Overlay</div>
+      <button class="bm-btn" id="bm-label" onclick="toggleLabels(this)">🏷️ Label OFF</button>
+    </div>
+
+    <!-- Fit button -->
+    <button class="fit-btn" onclick="fitAll()">⊡ Fit Semua Marker</button>
+
+    <!-- Popup card -->
+    <div class="popup-card" id="popup-card">
+      <button class="pc-close" onclick="closePopup()">✕</button>
+      <div class="pc-head">
+        <div class="pc-img-box">
+          <div class="pc-img-placeholder">📷</div>
+          <img id="pc-img" src="" onerror="this.style.display='none'" onload="this.style.display='block'">
+        </div>
+        <div class="pc-kec" id="pc-kec"></div>
+        <div class="pc-desa" id="pc-desa"></div>
+        <div class="pc-file" id="pc-file"></div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-row">
+          <div class="pc-box">
+            <div class="pc-lbl">Latitude</div>
+            <div class="pc-val" id="pc-lat"></div>
+          </div>
+          <div class="pc-box">
+            <div class="pc-lbl">Longitude</div>
+            <div class="pc-val" id="pc-lon"></div>
+          </div>
+        </div>
+        <div class="pc-grp" id="pc-grp" style="display:none">
+          <div class="pc-grp-title" id="pc-grp-title"></div>
+          <div class="pc-grp-files" id="pc-grp-files"></div>
+        </div>
+      </div>
+      <div class="pc-foot">
+        <a class="pc-btn pc-btn-primary" id="pc-gmap" href="#" target="_blank">🗺️ Google Maps</a>
+        <a class="pc-btn pc-btn-secondary" id="pc-osm" href="#" target="_blank">🌍 OpenStreetMap</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Drawer Panel -->
+  <div class="ai-drawer" id="ai-drawer">
+    <div class="ai-header">
+      <div class="ai-title">✨ AI Assistant — Gemini AI Studio</div>
+      <button class="ai-close" onclick="toggleAIDrawer()">✕</button>
+    </div>
+
+    <div class="ai-api-key-box">
+      <label style="font-size: 10px; color: var(--text2); font-weight: 700;">GOOGLE AI STUDIO API KEY (OPSIONAL):</label>
+      <input type="password" id="ai-api-key" class="ai-key-input" placeholder="Masukkan API Key Gemini..." onchange="saveApiKey()">
+    </div>
+
+    <div class="ai-chat-body" id="ai-chat-body">
+      <div class="ai-msg bot">
+        <div class="ai-bubble">
+          Halo! Saya **AI Assistant Spatial WebGIS Pesisir Tuban** didukung Google Gemini. Saya bisa membantu Anda menganalisis sebaran foto GPS, statistik per kecamatan, hingga mencari titik lokasi tertentu. Ada yang bisa saya bantu?
+        </div>
+        <div class="ai-time">AI Engine System</div>
+      </div>
+    </div>
+
+    <div class="ai-presets">
+      <button class="ai-preset-btn" onclick="sendPreset('Analisis sebaran titik foto per kecamatan')">📊 Sebaran Foto</button>
+      <button class="ai-preset-btn" onclick="sendPreset('Desa mana yang punya foto GPS terbanyak?')">🏆 Titik Terbanyak</button>
+      <button class="ai-preset-btn" onclick="sendPreset('Ringkas statistik pesisir Tuban')">📝 Ringkasan Peta</button>
+      <button class="ai-preset-btn" onclick="sendPreset('Cari foto di Pantai Cemara')">🏖️ Pantai Cemara</button>
+    </div>
+
+    <div class="ai-input-box">
+      <input type="text" id="ai-input" class="ai-input" placeholder="Tanyakan seputar data GIS / foto..." onkeydown="if(event.key==='Enter') sendAIMessage()">
+      <button class="ai-send-btn" onclick="sendAIMessage()">Kirim</button>
+    </div>
+  </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Marker Cluster -->
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────
+const DATA = [
+  {kec:"KECAMATAN BANCAR",desa:"DESA BANCAR KEC. BANCAR",file:"20260531_110356AMByGPSMapCamera.jpg",lat:-6.7796308,lon:111.7792597,n:11,others:"20260531_110421AMByGPSMapCamera.jpg; 20260531_110454AMByGPSMapCamera.jpg; 20260531_110500AMByGPSMapCamera.jpg; 20260531_110503AMByGPSMapCamera.jpg; 20260531_110505AMByGPSMapCamera.jpg; 20260531_110530AMByGPSMapCamera.jpg; 20260531_110703AMByGPSMapCamera.jpg; 20260531_110715AMByGPSMapCamera.jpg; 20260531_110837AMByGPSMapCamera.jpg; 20260531_110843AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BOGOREJO BANCAR",file:"20260531_101236AMByGPSMapCamera.jpg",lat:-6.7727239,lon:111.7651169,n:5,others:"20260531_100625AMByGPSMapCamera.jpg; 20260531_100634AMByGPSMapCamera.jpg; 20260531_101300AMByGPSMapCamera.jpg; 20260531_101305AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BOGOREJO BANCAR",file:"20260531_113243AMByGPSMapCamera.jpg",lat:-6.790015,lon:111.7996489,n:2,others:"20260531_113630AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BOGOREJO BANCAR",file:"20260531_95258AMByGPSMapCamera.jpg",lat:-6.7743389,lon:111.7643819,n:3,others:"20260531_95228AMByGPSMapCamera.jpg; 20260531_95300AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BONCONG BANCAR",file:"20260531_85644AMByGPSMapCamera.jpg",lat:-6.7721019,lon:111.7444528,n:4,others:"20260531_85520AMByGPSMapCamera.jpg; 20260531_85523AMByGPSMapCamera.jpg; 20260531_85548AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BONCONG BANCAR",file:"20260531_90000AMByGPSMapCamera.jpg",lat:-6.7765519,lon:111.75404,n:1,others:""},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BONCONG BANCAR",file:"20260531_94250AMByGPSMapCamera.jpg",lat:-6.7743519,lon:111.7505258,n:2,others:"20260531_94241AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BULU MEDURO BANCAR",file:"20260531_80432AMByGPSMapCamera.jpg",lat:-6.7700578,lon:111.7236789,n:8,others:"20260531_75441AMByGPSMapCamera.jpg; 20260531_80200AMByGPSMapCamera.jpg; 20260531_80217AMByGPSMapCamera.jpg; 20260531_80230AMByGPSMapCamera.jpg; 20260531_80357AMByGPSMapCamera.jpg; 20260531_80453AMByGPSMapCamera.jpg; 20260531_80501AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BULU MEDURO BANCAR",file:"20260531_80744AMByGPSMapCamera.jpg",lat:-6.7696819,lon:111.7242378,n:2,others:"20260531_80737AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BULU MEDURO BANCAR",file:"20260531_81049AMByGPSMapCamera.jpg",lat:-6.7689908,lon:111.7241208,n:2,others:"20260531_81043AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BULU MEDURO BANCAR",file:"20260531_82454AMByGPSMapCamera.jpg",lat:-6.7709089,lon:111.7253758,n:3,others:"20260531_82606AMByGPSMapCamera.jpg; 20260531_82616AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA BULU MEDURO BANCAR",file:"20260531_84448AMByGPSMapCamera.jpg",lat:-6.7715947,lon:111.731475,n:19,others:"20260531_83703AMByGPSMapCamera.jpg; 20260531_83733AMByGPSMapCamera.jpg; 20260531_83744AMByGPSMapCamera.jpg; 20260531_83819AMByGPSMapCamera.jpg; 20260531_84043AMByGPSMapCamera.jpg; 20260531_84122AMByGPSMapCamera.jpg; 20260531_84443AMByGPSMapCamera.jpg; 20260531_84543AMByGPSMapCamera.jpg; 20260531_84555AMByGPSMapCamera.jpg; 20260531_84626AMByGPSMapCamera.jpg; 20260531_84742AMByGPSMapCamera.jpg; 20260531_84757AMByGPSMapCamera.jpg; 20260531_84807AMByGPSMapCamera.jpg; 20260531_84831AMByGPSMapCamera.jpg; 20260531_84848AMByGPSMapCamera.jpg; 20260531_84921AMByGPSMapCamera.jpg; 20260531_84936AMByGPSMapCamera.jpg; 20260531_84944AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA SUKOLILO BANCAR",file:"20260531_71851AMByGPSMapCamera.jpg",lat:-6.7550069,lon:111.6919608,n:4,others:"20260531_71803AMByGPSMapCamera.jpg; 20260531_71940AMByGPSMapCamera.jpg; 20260531_72227AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN BANCAR",desa:"DESA SUKOLILO BANCAR",file:"20260531_74412AMByGPSMapCamera.jpg",lat:-6.7671839,lon:111.7116508,n:6,others:"20260531_74153AMByGPSMapCamera.jpg; 20260531_74217AMByGPSMapCamera.jpg; 20260531_74238AMByGPSMapCamera.jpg; 20260531_74340AMByGPSMapCamera.jpg; 20260531_74406AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA JENU",file:"20260602_104726AMByGPSMapCamera.jpg",lat:-6.8402128,lon:112.0145989,n:1,others:""},
+  {kec:"KECAMATAN JENU",desa:"DESA JENU",file:"20260602_105349AMByGPSMapCamera.jpg",lat:-6.8391958,lon:112.0139419,n:3,others:"20260602_105210AMByGPSMapCamera.jpg; 20260602_105250AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA KALIUNTU JENU",file:"20260602_102341AMByGPSMapCamera.jpg",lat:-6.823875,lon:112.0066108,n:2,others:"20260602_102413AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA KALIUNTU JENU",file:"20260602_103601AMByGPSMapCamera.jpg",lat:-6.8257,lon:112.0072558,n:1,others:""},
+  {kec:"KECAMATAN JENU",desa:"DESA MENTOSO JENU",file:"20260602_84321AMByGPSMapCamera.jpg",lat:-6.7906508,lon:111.9839328,n:1,others:""},
+  {kec:"KECAMATAN JENU",desa:"DESA MENTOSO JENU",file:"20260602_84931AMByGPSMapCamera.jpg",lat:-6.7907378,lon:111.9849797,n:2,others:"20260602_84930AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA PURWOREJO JENU",file:"20260601_114351AMByGPSMapCamera.jpg",lat:-6.7797208,lon:111.9246689,n:2,others:"20260601_114358AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA PURWOREJO JENU",file:"20260601_114915AMByGPSMapCamera.jpg",lat:-6.7788808,lon:111.9237339,n:3,others:"20260601_115222AMByGPSMapCamera.jpg; 20260601_115233AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA PURWOREJO JENU",file:"20260601_115853AMByGPSMapCamera.jpg",lat:-6.77712,lon:111.9219708,n:2,others:"20260601_115842AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA PURWOREJO JENU",file:"20260601_121027PMByGPSMapCamera.jpg",lat:-6.7783278,lon:111.9239239,n:2,others:"20260601_121024PMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA REMEN JENU",file:"20260618_11923PMByGPSMapCamera.jpg",lat:-6.8420739,lon:112.0155719,n:5,others:"20260618_11855PMByGPSMapCamera.jpg; 20260618_11900PMByGPSMapCamera.jpg; 20260618_11934PMByGPSMapCamera.jpg; 20260618_11937PMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA REMEN JENU",file:"20260602_65437AMByGPSMapCamera.jpg",lat:-6.7716119,lon:111.9538628,n:1,others:""},
+  {kec:"KECAMATAN JENU",desa:"DESA REMEN JENU",file:"20260602_71322AMByGPSMapCamera.jpg",lat:-6.7665258,lon:111.9699569,n:1,others:""},
+  {kec:"KECAMATAN JENU",desa:"DESA REMEN JENU",file:"20260602_75259AMByGPSMapCamera.jpg",lat:-6.7693147,lon:111.9752797,n:1,others:""},
+  {kec:"KECAMATAN JENU",desa:"DESA SOCOREJO JENU",file:"20260601_100213AMByGPSMapCamera.jpg",lat:-6.7877978,lon:111.9036019,n:5,others:"20260601_100347AMByGPSMapCamera.jpg; 20260601_100534AMByGPSMapCamera.jpg; 20260601_100601AMByGPSMapCamera.jpg; 20260601_100957AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA SOCOREJO JENU",file:"20260601_105442AMByGPSMapCamera.jpg",lat:-6.7880158,lon:111.9031008,n:2,others:"20260601_105446AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA SOCOREJO JENU",file:"20260601_94625AMByGPSMapCamera.jpg",lat:-6.7885739,lon:111.9009858,n:2,others:"20260601_94623AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA SOCOREJO JENU",file:"20260601_94920AMByGPSMapCamera.jpg",lat:-6.7880439,lon:111.9004269,n:4,others:"20260601_94831AMByGPSMapCamera.jpg; 20260601_94858AMByGPSMapCamera.jpg; 20260601_94907AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN JENU",desa:"DESA SUGIHWARAS KEC JENU",file:"pantai cemara.jpg",lat:-6.8464319,lon:112.0185019,n:1,others:""},
+  {kec:"KECAMATAN JENU",desa:"DESA SUGIHWARAS KEC JENU",file:"terminal wisata tuban 1.jpg",lat:-6.8578589,lon:112.0286558,n:1,others:""},
+  {kec:"KECAMATAN JENU",desa:"DESA SUGIHWARAS KEC JENU",file:"terminal wisata tuban 2.jpg",lat:-6.8570689,lon:112.0280519,n:1,others:""},
+  {kec:"KECAMATAN JENU",desa:"DESA TASIKHARJO JENU",file:"20260602_63141AMByGPSMapCamera.jpg",lat:-6.7724458,lon:111.9329639,n:2,others:"20260602_63941AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN PALANG",desa:"DESA GESIKHARJO PALANG",file:"20260604_74554AMByGPSMapCamera.jpg",lat:-6.9019458,lon:112.1313169,n:2,others:"20260604_73905AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN PALANG",desa:"DESA GESIKHARJO PALANG",file:"20260604_75526AMByGPSMapCamera.jpg",lat:-6.9021839,lon:112.1298769,n:2,others:"20260604_75250AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN PALANG",desa:"DESA GESIKHARJO PALANG",file:"20260604_91324AMByGPSMapCamera.jpg",lat:-6.8963169,lon:112.0919319,n:2,others:"20260604_91328AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN PALANG",desa:"DESA GLODOG PALANG",file:"20260604_63540AMByGPSMapCamera.jpg",lat:-6.8970008,lon:112.1508297,n:2,others:"20260604_63550AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN PALANG",desa:"DESA GLODOG PALANG",file:"20260604_64223AMByGPSMapCamera.jpg",lat:-6.8974528,lon:112.1531278,n:1,others:""},
+  {kec:"KECAMATAN PALANG",desa:"DESA GLODOG PALANG",file:"20260604_64529AMByGPSMapCamera.jpg",lat:-6.8981628,lon:112.1531969,n:2,others:"20260604_64617AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN PALANG",desa:"DESA KARANGAGUNG PALANG",file:"20260604_60922AMByGPSMapCamera.jpg",lat:-6.8978119,lon:112.1695758,n:1,others:""},
+  {kec:"KECAMATAN PALANG",desa:"DESA KARANGAGUNG PALANG",file:"20260604_61755AMByGPSMapCamera.jpg",lat:-6.9001419,lon:112.1710589,n:1,others:""},
+  {kec:"KECAMATAN PALANG",desa:"DESA KARANGAGUNG PALANG",file:"20260604_71329AMByGPSMapCamera.jpg",lat:-6.9008778,lon:112.1431428,n:3,others:"20260604_72425AMByGPSMapCamera.jpg; 20260604_72427AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN PALANG",desa:"DESA KARANGAGUNG PALANG",file:"20260604_71623AMByGPSMapCamera.jpg",lat:-6.9001639,lon:112.1429097,n:3,others:"20260604_71456AMByGPSMapCamera.jpg; 20260604_71650AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN PALANG",desa:"DESA KRADENAN PALANG",file:"20260604_83947AMByGPSMapCamera.jpg",lat:-6.9004628,lon:112.1173639,n:1,others:""},
+  {kec:"KECAMATAN PALANG",desa:"DESA KRADENAN PALANG",file:"20260604_90113AMByGPSMapCamera.jpg",lat:-6.9009508,lon:112.1184158,n:1,others:""},
+  {kec:"KECAMATAN PALANG",desa:"DESA TASIKMADU PALANG",file:"20260604_90629AMByGPSMapCamera.jpg",lat:-6.8965547,lon:112.1071769,n:1,others:""},
+  {kec:"KECAMATAN PALANG",desa:"DESA TASIKMADU PALANG",file:"20260604_90846AMByGPSMapCamera.jpg",lat:-6.8966297,lon:112.1025239,n:2,others:"20260604_90852AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN PALANG",desa:"KELURAHAN PANYURAN PALANG",file:"20260604_92154AMByGPSMapCamera.jpg",lat:-6.8957739,lon:112.0893578,n:1,others:""},
+  {kec:"KECAMATAN PALANG",desa:"KELURAHAN PANYURAN PALANG",file:"20260604_94025AMByGPSMapCamera.jpg",lat:-6.8943628,lon:112.0901908,n:1,others:""},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA GADON TAMBAKBOYO",file:"20260601_62518AMByGPSMapCamera.jpg",lat:-6.7992819,lon:111.8223369,n:3,others:"20260601_62512AMByGPSMapCamera.jpg; 20260601_62556AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA GADON TAMBAKBOYO",file:"20260601_63245AMByGPSMapCamera.jpg",lat:-6.7986908,lon:111.8238119,n:5,others:"20260601_63241AMByGPSMapCamera.jpg; 20260601_63356AMByGPSMapCamera.jpg; 20260601_63408AMByGPSMapCamera.jpg; 20260601_63433AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA GLONDONGGEDE TAMBAKBOYO",file:"20260601_92925AMByGPSMapCamera.jpg",lat:-6.7911328,lon:111.8915189,n:5,others:"20260601_92613AMByGPSMapCamera.jpg; 20260601_92818AMByGPSMapCamera.jpg; 20260601_92825AMByGPSMapCamera.jpg; 20260601_93119AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA GLONDONGGEDE TAMBAKBOYO",file:"20260601_93602AMByGPSMapCamera.jpg",lat:-6.7921039,lon:111.8922089,n:1,others:""},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA KENANTI TAMBAKBOYO",file:"20260601_65909AMByGPSMapCamera.jpg",lat:-6.8016208,lon:111.8480169,n:1,others:""},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA KENANTI TAMBAKBOYO",file:"20260601_70025AMByGPSMapCamera.jpg",lat:-6.8017147,lon:111.8492978,n:1,others:""},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA KENANTI TAMBAKBOYO",file:"20260601_70100AMByGPSMapCamera.jpg",lat:-6.8018928,lon:111.8498539,n:1,others:""},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA KENANTI TAMBAKBOYO",file:"20260601_75252AMByGPSMapCamera.jpg",lat:-6.8005258,lon:111.849935,n:8,others:"20260601_73430AMByGPSMapCamera.jpg; 20260601_73722AMByGPSMapCamera.jpg; 20260601_73841AMByGPSMapCamera.jpg; 20260601_73859AMByGPSMapCamera.jpg; 20260601_73915AMByGPSMapCamera.jpg; 20260601_75257AMByGPSMapCamera.jpg; 20260601_75303AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA KENANTI TAMBAKBOYO",file:"20260601_74538AMByGPSMapCamera.jpg",lat:-6.8003978,lon:111.8505339,n:1,others:""},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA KENANTI TAMBAKBOYO",file:"20260601_74752AMByGPSMapCamera.jpg",lat:-6.8003778,lon:111.8510658,n:1,others:""},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA PABEYAN TAMBAKBOYO",file:"20260601_65320AMByGPSMapCamera.jpg",lat:-6.8027058,lon:111.838335,n:2,others:"20260601_65311AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA PABEYAN TAMBAKBOYO",file:"20260601_82921AMByGPSMapCamera.jpg",lat:-6.8010428,lon:111.8400758,n:3,others:"20260601_82806AMByGPSMapCamera.jpg; 20260601_82926AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA SOBONTORO TAMBAKBOYO",file:"20260601_85826AMByGPSMapCamera.jpg",lat:-6.7999839,lon:111.8565889,n:3,others:"20260601_85339AMByGPSMapCamera.jpg; 20260601_85934AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA SOBONTORO TAMBAKBOYO",file:"20260601_90916AMByGPSMapCamera.jpg",lat:-6.7998219,lon:111.8580389,n:2,others:"20260601_90557AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA TAMBAKBOYO KEC. TAMBAKBOYO",file:"20260601_81607AMByGPSMapCamera.jpg",lat:-6.8009439,lon:111.8433158,n:5,others:"20260601_81037AMByGPSMapCamera.jpg; 20260601_81158AMByGPSMapCamera.jpg; 20260601_81351AMByGPSMapCamera.jpg; 20260601_81520AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TAMBAKBOYO",desa:"DESA TAMBAKBOYO KEC. TAMBAKBOYO",file:"20260601_81750AMByGPSMapCamera.jpg",lat:-6.8009489,lon:111.8427769,n:1,others:""},
+  {kec:"KECAMATAN TUBAN",desa:"KELUARAHAN SENDANGHARJO TUBAN",file:"20260602_122542PMByGPSMapCamera.jpg",lat:-6.8939358,lon:112.0677439,n:1,others:""},
+  {kec:"KECAMATAN TUBAN",desa:"KELURAHAN BATURETNO TUBAN",file:"20260602_122746PMByGPSMapCamera.jpg",lat:-6.8950669,lon:112.0708697,n:1,others:""},
+  {kec:"KECAMATAN TUBAN",desa:"KELURAHAN BATURETNO TUBAN",file:"20260602_122936PMByGPSMapCamera.jpg",lat:-6.8952578,lon:112.0719278,n:1,others:""},
+  {kec:"KECAMATAN TUBAN",desa:"KELURAHAN KARANGSARI TUBAN",file:"20260602_114803AMByGPSMapCamera.jpg",lat:-6.8889347,lon:112.0556639,n:4,others:"20260602_114833AMByGPSMapCamera.jpg; 20260602_114839AMByGPSMapCamera.jpg; 20260602_114846AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TUBAN",desa:"KELURAHAN KARANGSARI TUBAN",file:"20260602_115851AMByGPSMapCamera.jpg",lat:-6.8899719,lon:112.0586278,n:7,others:"20260602_115528AMByGPSMapCamera.jpg; 20260602_115531AMByGPSMapCamera.jpg; 20260602_115739AMByGPSMapCamera.jpg; 20260602_115741AMByGPSMapCamera.jpg; 20260602_115749AMByGPSMapCamera.jpg; 20260602_115859AMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TUBAN",desa:"KELURAHAN KARANGSARI TUBAN",file:"20260602_120730PMByGPSMapCamera.jpg",lat:-6.8916239,lon:112.060125,n:3,others:"20260602_120741PMByGPSMapCamera.jpg; 20260602_120754PMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TUBAN",desa:"KELURAHAN KUTOREJO TUBAN",file:"20260602_122355PMByGPSMapCamera.jpg",lat:-6.8933058,lon:112.0657228,n:1,others:""},
+  {kec:"KECAMATAN TUBAN",desa:"KELURAHAN SIDOMULYO TUBAN",file:"20260602_121333PMByGPSMapCamera.jpg",lat:-6.8913008,lon:112.0610569,n:5,others:"20260602_121330PMByGPSMapCamera.jpg; 20260602_121348PMByGPSMapCamera.jpg; 20260602_121522PMByGPSMapCamera.jpg; 20260602_121523PMByGPSMapCamera.jpg"},
+  {kec:"KECAMATAN TUBAN",desa:"KELURAHAN SIDOMULYO TUBAN",file:"20260602_122044PMByGPSMapCamera.jpg",lat:-6.8923708,lon:112.0631778,n:3,others:"20260602_122046PMByGPSMapCamera.jpg; 20260602_122048PMByGPSMapCamera.jpg"}
+];
+
+// ─── WARNA KECAMATAN ─────────────────────────────────────────
+const COLOR = {
+  "KECAMATAN BANCAR":    "#f472b6",
+  "KECAMATAN JENU":      "#60a5fa",
+  "KECAMATAN PALANG":    "#34d399",
+  "KECAMATAN TAMBAKBOYO":"#fbbf24",
+  "KECAMATAN TUBAN":     "#a78bfa"
+};
+
+// ─── BASEMAP TILES ───────────────────────────────────────────
+const TILES = {
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP',
+    maxZoom: 19
+  }),
+  hybrid: L.layerGroup([
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+  ]),
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }),
+  topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenTopoMap contributors',
+    maxZoom: 17
+  })
+};
+
+const labelOverlay = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19, attribution: ''
+});
+
+// ─── INIT MAP ────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [-6.82, 111.87],
+  zoom: 11,
+  layers: [TILES.satellite],
+  zoomControl: true
+});
+
+let currentBasemap = 'satellite';
+let labelsOn = false;
+
+// ─── MARKER SVG ──────────────────────────────────────────────
+function makeSVG(color, count) {
+  const big = count > 5;
+  const mid = count > 1 && !big;
+  const size = big ? 34 : mid ? 30 : 26;
+  const label = count > 1 ? count : '📷';
+  const fontSize = count > 9 ? 9 : 11;
+  return `<svg width="${size}" height="${size+8}" viewBox="0 0 ${size} ${size+8}" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="${size/2}" cy="${size/2}" r="${size/2-1}" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+    <polygon points="${size/2-5},${size} ${size/2+5},${size} ${size/2},${size+8}" fill="${color}"/>
+    <text x="${size/2}" y="${size/2+4}" text-anchor="middle" font-size="${fontSize}" font-family="Plus Jakarta Sans,sans-serif" font-weight="800" fill="#000000">${typeof label==='string'&&label.startsWith('📷')?'📷':label}</text>
+  </svg>`;
+}
+
+function makeIcon(color, count) {
+  const big = count > 5;
+  const mid = count > 1 && !big;
+  const w = big ? 34 : mid ? 30 : 26;
+  const h = w + 8;
+  return L.divIcon({
+    html: makeSVG(color, count),
+    className: '',
+    iconSize: [w, h],
+    iconAnchor: [w/2, h],
+    popupAnchor: [0, -h]
+  });
+}
+
+// ─── CLUSTER GROUPS ─────────────────────────────────────────
+const kecGroups = {};
+const allMarkers = [];
+let hiddenKecs = new Set();
+let sideFilter = 'all';
+let searchQ = '';
+let activeIdx = -1;
+
+Object.keys(COLOR).forEach(kec => {
+  kecGroups[kec] = L.markerClusterGroup({
+    showCoverageOnHover: false,
+    maxClusterRadius: 50,
+    iconCreateFunction: cluster => {
+      const c = cluster.getChildCount();
+      const col = COLOR[kec];
+      return L.divIcon({
+        html: `<div style="background:${col}25;border:2px solid ${col};border-radius:50%;width:${c>9?44:38}px;height:${c>9?44:38}px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:${col};box-shadow:0 0 10px ${col}44;">${c}</div>`,
+        className: '',
+        iconSize: [c > 9 ? 44 : 38, c > 9 ? 44 : 38],
+        iconAnchor: [(c > 9 ? 44 : 38)/2, (c > 9 ? 44 : 38)/2]
+      });
+    }
+  });
+  map.addLayer(kecGroups[kec]);
+});
+
+// ─── ADD MARKERS ────────────────────────────────────────────
+DATA.forEach((d, idx) => {
+  const col = COLOR[d.kec] || '#fff';
+  const marker = L.marker([d.lat, d.lon], { icon: makeIcon(col, d.n) });
+  marker.on('click', () => openPopup(idx));
+  kecGroups[d.kec].addLayer(marker);
+  allMarkers.push(marker);
+});
+
+// ─── POPUP ──────────────────────────────────────────────────
+function openPopup(idx) {
+  activeIdx = idx;
+  const d = DATA[idx];
+  const col = COLOR[d.kec] || '#fff';
+
+  document.getElementById('pc-kec').textContent = d.kec.toUpperCase();
+  document.getElementById('pc-kec').style.color = col;
+  document.getElementById('pc-desa').textContent = d.desa;
+  document.getElementById('pc-file').textContent = '📷 ' + d.file;
+  document.getElementById('pc-lat').textContent = d.lat.toFixed(6);
+  document.getElementById('pc-lon').textContent = d.lon.toFixed(6);
+  document.getElementById('pc-gmap').href = 'https://www.google.com/maps?q=' + d.lat + ',' + d.lon;
+  document.getElementById('pc-osm').href = 'https://www.openstreetmap.org/?mlat=' + d.lat + '&mlon=' + d.lon + '&zoom=18';
+
+  const imgPath = encodeURI(d.kec + '/' + d.desa + '/' + d.file);
+  const imgEl = document.getElementById('pc-img');
+  imgEl.src = imgPath;
+  imgEl.style.display = 'none';
+
+  const grp = document.getElementById('pc-grp');
+  if (d.n > 1 && d.others) {
+    document.getElementById('pc-grp-title').textContent = '📦 ' + d.n + ' foto dikelompokkan (radius <50m)';
+    document.getElementById('pc-grp-files').textContent = d.others;
+    grp.style.display = 'block';
+  } else {
+    grp.style.display = 'none';
+  }
+
+  document.getElementById('popup-card').classList.add('show');
+
+  document.querySelectorAll('.loc-row').forEach(e => e.classList.remove('active'));
+  const row = document.getElementById('row-' + idx);
+  if (row) { row.classList.add('active'); row.scrollIntoView({block:'nearest'}); }
+
+  map.setView([d.lat, d.lon], Math.max(map.getZoom(), 17));
+}
+
+function closePopup() {
+  document.getElementById('popup-card').classList.remove('show');
+  document.querySelectorAll('.loc-row').forEach(e => e.classList.remove('active'));
+  activeIdx = -1;
+}
+
+// ─── BASEMAP SWITCH ─────────────────────────────────────────
+function setBasemap(type, btn) {
+  Object.values(TILES).forEach(t => map.removeLayer(t));
+  map.addLayer(TILES[type]);
+  if (labelsOn && type !== 'hybrid' && type !== 'osm' && type !== 'topo') {
+    labelOverlay.addTo(map);
+  }
+  currentBasemap = type;
+  document.querySelectorAll('.bm-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  Object.values(kecGroups).forEach(g => { map.removeLayer(g); map.addLayer(g); });
+}
+
+function toggleLabels(btn) {
+  labelsOn = !labelsOn;
+  if (labelsOn) {
+    labelOverlay.addTo(map);
+    btn.textContent = '🏷️ Label ON';
+    btn.classList.add('active');
+  } else {
+    map.removeLayer(labelOverlay);
+    btn.textContent = '🏷️ Label OFF';
+    btn.classList.remove('active');
+  }
+}
+
+// ─── TOGGLE KEC LAYER ───────────────────────────────────────
+function toggleLayer(chip) {
+  const kec = chip.dataset.kec;
+  chip.classList.toggle('off');
+  if (hiddenKecs.has(kec)) {
+    hiddenKecs.delete(kec);
+    map.addLayer(kecGroups[kec]);
+  } else {
+    hiddenKecs.add(kec);
+    map.removeLayer(kecGroups[kec]);
+  }
+  renderSidebar();
+}
+
+// ─── FIT ALL ────────────────────────────────────────────────
+function fitAll() {
+  const visible = DATA.filter((d) => !hiddenKecs.has(d.kec));
+  if (!visible.length) return;
+  const bounds = L.latLngBounds(visible.map(d => [d.lat, d.lon]));
+  map.fitBounds(bounds, { padding: [50, 50] });
+}
+
+// ─── SIDEBAR ────────────────────────────────────────────────
+function setSideFilter(kec, btn) {
+  sideFilter = kec;
+  document.querySelectorAll('.sf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSidebar();
+}
+
+function filterSidebar() {
+  searchQ = document.getElementById('sb-search').value.toLowerCase();
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const list = document.getElementById('sb-list');
+  list.innerHTML = '';
+
+  const filtered = DATA.map((d, i) => ({...d, idx:i})).filter(d => {
+    if (sideFilter !== 'all' && d.kec !== sideFilter) return false;
+    if (hiddenKecs.has(d.kec)) return false;
+    if (searchQ && !(d.desa+d.file+d.lat+d.lon).toLowerCase().includes(searchQ)) return false;
+    return true;
+  });
+
+  document.getElementById('st-visible').textContent = filtered.length;
+
+  const byKec = {};
+  filtered.forEach(d => {
+    if (!byKec[d.kec]) byKec[d.kec] = [];
+    byKec[d.kec].push(d);
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:#3d607e;font-size:12px">Tidak ada hasil ditemukan</div>';
+    return;
+  }
+
+  Object.keys(byKec).sort().forEach(kec => {
+    const col = COLOR[kec] || '#fff';
+    const hdr = document.createElement('div');
+    hdr.className = 'kec-hdr';
+    hdr.style.color = col;
+    hdr.innerHTML = '<span>' + kec.replace('KECAMATAN ','KEC. ') + '</span>'
+      + '<span class="kec-cnt">' + byKec[kec].length + '</span>';
+    list.appendChild(hdr);
+
+    byKec[kec].forEach(d => {
+      const row = document.createElement('div');
+      row.className = 'loc-row' + (activeIdx === d.idx ? ' active' : '');
+      row.id = 'row-' + d.idx;
+      const badge = d.n > 1 ? '<span class="gr-badge">' + d.n + '</span>' : '';
+      row.innerHTML =
+        '<div class="lr-dot" style="background:' + col + '; color:' + col + ';"></div>' +
+        '<div class="lr-body">' +
+          '<div class="lr-desa">' + d.desa + badge + '</div>' +
+          '<div class="lr-file">' + d.file + '</div>' +
+          '<div class="lr-coord">' + d.lat.toFixed(6) + ', ' + d.lon.toFixed(6) + '</div>' +
+        '</div>';
+      row.onclick = () => openPopup(d.idx);
+      list.appendChild(row);
+    });
+  });
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ─── AI ASSISTANT DRAWER ───────────────────────────────────
+function toggleAIDrawer() {
+  document.getElementById('ai-drawer').classList.toggle('open');
+}
+
+function saveApiKey() {
+  const key = document.getElementById('ai-api-key').value;
+  localStorage.setItem('gemini_api_key', key);
+}
+
+// Load saved key
+if (localStorage.getItem('gemini_api_key')) {
+  document.getElementById('ai-api-key').value = localStorage.getItem('gemini_api_key');
+}
+
+function sendPreset(text) {
+  document.getElementById('ai-input').value = text;
+  sendAIMessage();
+}
+
+async function sendAIMessage() {
+  const inputEl = document.getElementById('ai-input');
+  const query = inputEl.value.trim();
+  if (!query) return;
+
+  appendChatMsg('user', query);
+  inputEl.value = '';
+
+  const apiKey = document.getElementById('ai-api-key').value.trim();
+
+  if (apiKey) {
+    // Call Gemini API Live from Google AI Studio
+    appendChatMsg('bot', '⏳ Menghubungi Gemini 2.0 via Google AI Studio API...');
+    try {
+      const systemPrompt = `Anda adalah Asisten AI WebGIS Pesisir Tuban. Berikut rangkuman data 77 titik foto GPS: 
+- Total Foto: 212 foto di 5 Kecamatan (Bancar, Jenu, Palang, Tambakboyo, Tuban).
+- Kecamatan Bancar: 14 titik lokasi.
+- Kecamatan Jenu: 22 titik lokasi (Termasuk Pantai Cemara & Terminal Wisata Tuban).
+- Kecamatan Palang: 16 titik lokasi.
+- Kecamatan Tambakboyo: 16 titik lokasi.
+- Kecamatan Tuban: 9 titik lokasi.
+Jawab pertanyaan berikut secara ringkas, ramah, dan informatif: ${query}`;
+
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] })
+      });
+      const data = await res.json();
+      if (data.candidates && data.candidates[0].content.parts[0].text) {
+        // Remove loading
+        removeLastBotMsg();
+        appendChatMsg('bot', data.candidates[0].content.parts[0].text);
+      } else {
+        removeLastBotMsg();
+        appendChatMsg('bot', '⚠️ Terjadi kendala saat menghubungkan ke Gemini API. Memperluas dengan Smart Engine bawaan.');
+        runSmartLocalEngine(query);
+      }
+    } catch (e) {
+      removeLastBotMsg();
+      runSmartLocalEngine(query);
+    }
+  } else {
+    // Use Built-in Smart Spatial Engine
+    runSmartLocalEngine(query);
+  }
+}
+
+function removeLastBotMsg() {
+  const chatBody = document.getElementById('ai-chat-body');
+  const msgs = chatBody.querySelectorAll('.ai-msg.bot');
+  if (msgs.length) chatBody.removeChild(msgs[msgs.length - 1]);
+}
+
+function runSmartLocalEngine(q) {
+  const query = q.toLowerCase();
+  let reply = '';
+
+  if (query.includes('sebaran') || query.includes('kecamatan')) {
+    reply = `📊 **Sebaran Titik Foto Pesisir Tuban (77 Titik Total)**:\n` +
+      `• **Kec. Jenu**: 22 Titik (Terbanyak)\n` +
+      `• **Kec. Palang**: 16 Titik\n` +
+      `• **Kec. Tambakboyo**: 16 Titik\n` +
+      `• **Kec. Bancar**: 14 Titik\n` +
+      `• **Kec. Tuban**: 9 Titik`;
+  } else if (query.includes('terbanyak') || query.includes('banyak')) {
+    reply = `🏆 **Titik Lokasi Foto Terbanyak**:\n` +
+      `1. **Desa Bulu Meduro (Bancar)**: Titik dengan 19 foto sekaligus!\n` +
+      `2. **Desa Bancar (Bancar)**: Titik dengan 11 foto.\n` +
+      `3. **Desa Kenanti (Tambakboyo)**: Titik dengan 8 foto.\n` +
+      `4. **Kel. Karangsari (Tuban)**: Titik dengan 7 foto.`;
+  } else if (query.includes('cemara') || query.includes('pantai')) {
+    reply = `🏖️ **Lokasi Wisata Pantai**: Ditemukan foto **Pantai Cemara** di Desa Sugihwaras, Kecamatan Jenu (Koordinat: -6.846432, 112.018502). Memicu pencarian pada peta!`;
+    document.getElementById('sb-search').value = 'cemara';
+    filterSidebar();
+  } else if (query.includes('ringkas') || query.includes('peta') || query.includes('statistik')) {
+    reply = `📝 **Ringkasan WebGIS Pesisir Tuban**:\n` +
+      `• Wilayah mencakup 5 Kecamatan Pesisir Utara Tuban.\n` +
+      `• Total 212 foto dikelompokkan ke dalam 77 titik koordinat presisi GPS.\n` +
+      `• Pengambilan sampel dilakukan menggunakan GPS Map Camera.`;
+  } else {
+    // Search highlight match
+    const matches = DATA.filter(d => (d.desa + d.file + d.kec).toLowerCase().includes(query));
+    if (matches.length > 0) {
+      reply = `🔍 Ditemukan **${matches.length} titik** yang cocok dengan kata kunci "${q}". Peta dan sidebar telah disaring secara otomatis!`;
+      document.getElementById('sb-search').value = q;
+      filterSidebar();
+    } else {
+      reply = `💡 *Saran*: Masukkan **Google AI Studio API Key** di bagian atas panel untuk mengaktifkan AI Gemini 2.0 secara penuh untuk menjawab pertanyaan bebas seputar foto dan kondisi lapangan!`;
+    }
+  }
+
+  appendChatMsg('bot', reply);
+}
+
+function appendChatMsg(sender, text) {
+  const chatBody = document.getElementById('ai-chat-body');
+  const msgEl = document.createElement('div');
+  msgEl.className = `ai-msg ${sender}`;
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  msgEl.innerHTML = `
+    <div class="ai-bubble">${text.replace(/\n/g, '<br>')}</div>
+    <div class="ai-time">${sender === 'user' ? 'Anda' : 'AI Assistant'} · ${now}</div>
+  `;
+  chatBody.appendChild(msgEl);
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+renderSidebar();
+fitAll();
+</script>
+</body>
+</html>
